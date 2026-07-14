@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>Light Table — คลังภาพของคุณ</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&family=IBM+Plex+Sans+Thai:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  :root{
+    --bg: #17181a;
+    --panel: #1f2123;
+    --ink: #f2ede2;
+    --ink-dim: #9a9b98;
+    --film: #2a2c2e;
+    --amber: #e8792b;
+    --sage: #6f7a5e;
+    --line: #38393b;
+    --danger: #c96a5a;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'IBM Plex Sans Thai','IBM Plex Sans',sans-serif;
+    min-height:100vh;
+  }
+  .wrap{max-width:1080px; margin:0 auto; padding:48px 24px 80px;}
+
+  header{margin-bottom:36px;}
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    letter-spacing:.18em;
+    text-transform:uppercase;
+    color:var(--amber);
+    margin-bottom:10px;
+  }
+  h1{
+    font-family:'Fraunces',serif;
+    font-weight:500;
+    font-size:clamp(32px,5vw,52px);
+    margin:0 0 8px;
+    letter-spacing:-0.01em;
+  }
+  p.sub{color:var(--ink-dim); font-size:15px; max-width:520px; line-height:1.6; margin:0;}
+
+  /* light table drop zone */
+  .lighttable{
+    position:relative;
+    border:1px solid var(--line);
+    border-radius:4px;
+    background:
+      repeating-linear-gradient(90deg, rgba(232,121,43,0.05) 0 2px, transparent 2px 40px),
+      linear-gradient(180deg, #242628, #1c1e20);
+    padding:40px 28px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .2s ease, background .2s ease;
+  }
+  .lighttable:hover, .lighttable.drag{
+    border-color:var(--amber);
+    background:
+      repeating-linear-gradient(90deg, rgba(232,121,43,0.10) 0 2px, transparent 2px 40px),
+      linear-gradient(180deg, #262a27, #1c1e20);
+  }
+  .lighttable .glyph{
+    font-family:'Fraunces',serif;
+    font-size:28px;
+    color:var(--amber);
+    margin-bottom:6px;
+    display:block;
+  }
+  .lighttable .cta{font-size:15px; font-weight:500;}
+  .lighttable .hint{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-dim); margin-top:8px; letter-spacing:.02em;}
+  input[type=file]{display:none;}
+
+  .status{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    color:var(--ink-dim);
+    margin-top:14px;
+    min-height:16px;
+  }
+  .status.err{color:var(--danger);}
+
+  /* contact sheet grid */
+  .sheet-label{
+    display:flex; align-items:baseline; justify-content:space-between;
+    margin:52px 0 16px;
+    border-bottom:1px solid var(--line);
+    padding-bottom:12px;
+  }
+  .sheet-label .frame-count{
+    font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--ink-dim);
+  }
+  .sheet-label h2{
+    font-family:'Fraunces',serif; font-weight:500; font-size:20px; margin:0;
+  }
+
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+    gap:18px;
+  }
+  .frame{
+    position:relative;
+    background:var(--film);
+    border-radius:3px;
+    overflow:hidden;
+    aspect-ratio:1;
+  }
+  /* sprocket holes top/bottom, film-strip signature */
+  .frame::before, .frame::after{
+    content:"";
+    position:absolute;
+    left:0; right:0;
+    height:10px;
+    background-image: radial-gradient(circle, var(--bg) 3px, transparent 3.2px);
+    background-size:16px 10px;
+    background-repeat:repeat-x;
+    background-position:4px center;
+    z-index:2;
+  }
+  .frame::before{top:0;}
+  .frame::after{bottom:0;}
+  .frame img{
+    width:100%; height:100%; object-fit:cover;
+    display:block;
+    padding:10px 0;
+    box-sizing:border-box;
+  }
+  .frame .overlay{
+    position:absolute; inset:10px 0;
+    display:flex; align-items:flex-end;
+    justify-content:space-between;
+    padding:8px 10px;
+    background:linear-gradient(180deg, transparent 55%, rgba(0,0,0,.65));
+    opacity:0;
+    transition:opacity .15s ease;
+    z-index:3;
+  }
+  .frame:hover .overlay{opacity:1;}
+  .frame .fname{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--ink);
+    max-width:70%;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .frame .actions button{
+    background:rgba(23,24,26,.75);
+    border:1px solid var(--line);
+    color:var(--ink);
+    border-radius:3px;
+    width:26px; height:26px;
+    font-size:13px;
+    cursor:pointer;
+    margin-left:4px;
+  }
+  .frame .actions button:hover{border-color:var(--amber); color:var(--amber);}
+  .frame .actions button.del:hover{border-color:var(--danger); color:var(--danger);}
+
+  .empty{
+    text-align:center;
+    padding:50px 20px;
+    color:var(--ink-dim);
+    font-size:14px;
+    border:1px dashed var(--line);
+    border-radius:4px;
+  }
+  .empty span{display:block; font-family:'Fraunces',serif; font-size:20px; color:var(--ink); margin-bottom:6px;}
+
+  footer{
+    margin-top:60px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--ink-dim);
+    border-top:1px solid var(--line);
+    padding-top:16px;
+  }
+
+  .frame{cursor:zoom-in;}
+
+  /* lightbox */
+  .lightbox{
+    position:fixed; inset:0;
+    background:rgba(10,10,10,.92);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:50;
+    padding:32px;
+  }
+  .lightbox.open{display:flex;}
+  .lightbox .stage{
+    position:relative;
+    max-width:min(1000px,90vw);
+    max-height:86vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+  .lightbox img{
+    max-width:100%;
+    max-height:76vh;
+    object-fit:contain;
+    border-radius:2px;
+    box-shadow:0 20px 60px rgba(0,0,0,.5);
+  }
+  .lightbox .meta{
+    margin-top:14px;
+    display:flex;
+    align-items:center;
+    gap:16px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    color:var(--ink-dim);
+  }
+  .lightbox .meta .idx{color:var(--amber);}
+  .lightbox .meta button{
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--ink);
+    border-radius:3px;
+    padding:6px 10px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    cursor:pointer;
+  }
+  .lightbox .meta button:hover{border-color:var(--amber); color:var(--amber);}
+  .lightbox .meta button.del:hover{border-color:var(--danger); color:var(--danger);}
+
+  .lightbox .close{
+    position:absolute;
+    top:-4px; right:-4px;
+    background:none; border:none;
+    color:var(--ink);
+    font-size:24px;
+    cursor:pointer;
+    line-height:1;
+    padding:6px;
+  }
+  .lightbox .close:hover{color:var(--amber);}
+
+  .lightbox .nav{
+    position:fixed;
+    top:50%; transform:translateY(-50%);
+    background:none; border:none;
+    color:var(--ink-dim);
+    font-size:32px;
+    cursor:pointer;
+    padding:12px;
+  }
+  .lightbox .nav:hover{color:var(--amber);}
+  .lightbox .nav.prev{left:12px;}
+  .lightbox .nav.next{right:12px;}
+
+  /* confirm dialog */
+  .confirm-overlay{
+    position:fixed; inset:0;
+    background:rgba(10,10,10,.6);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:100;
+    padding:20px;
+  }
+  .confirm-overlay.open{display:flex;}
+  .confirm-box{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-top:2px solid var(--danger);
+    border-radius:4px;
+    padding:24px 26px;
+    max-width:340px;
+    width:100%;
+  }
+  .confirm-box .ct{
+    font-family:'Fraunces',serif;
+    font-size:18px;
+    margin:0 0 8px;
+  }
+  .confirm-box .cd{
+    font-size:13px;
+    color:var(--ink-dim);
+    line-height:1.6;
+    margin:0 0 20px;
+    word-break:break-word;
+  }
+  .cpass{margin:0 0 18px;}
+  .cpass label{
+    display:block;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:.04em;
+    color:var(--ink-dim);
+    margin-bottom:6px;
+  }
+  .cpass input{
+    width:100%;
+    background:var(--bg);
+    border:1px solid var(--line);
+    color:var(--ink);
+    border-radius:3px;
+    padding:9px 10px;
+    font-size:14px;
+    font-family:'IBM Plex Mono',monospace;
+    letter-spacing:.1em;
+    box-sizing:border-box;
+  }
+  .cpass input:focus{outline:none; border-color:var(--amber);}
+  .cpass .cerr{
+    min-height:16px;
+    font-size:12px;
+    color:var(--danger);
+    margin:6px 0 0;
+    font-family:'IBM Plex Mono',monospace;
+  }
+  .confirm-box .cbtns{
+    display:flex;
+    justify-content:flex-end;
+    gap:8px;
+  }
+  .confirm-box button{
+    font-family:'IBM Plex Sans Thai','IBM Plex Sans',sans-serif;
+    font-size:13px;
+    border-radius:3px;
+    padding:8px 14px;
+    cursor:pointer;
+    border:1px solid var(--line);
+    background:transparent;
+    color:var(--ink);
+  }
+  .confirm-box button:hover{border-color:var(--ink-dim);}
+  .confirm-box button.confirm-danger{
+    background:var(--danger);
+    border-color:var(--danger);
+    color:#1a1a1a;
+    font-weight:500;
+  }
+  .confirm-box button.confirm-danger:hover{opacity:.9;}
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">Personal Archive · No.001</div>
+    <h1>Light Table</h1>
+    <p class="sub">วางรูปลงบนโต๊ะไฟ แล้วมันจะถูกเก็บไว้ให้อัตโนมัติ — เป็นแกลเลอรีสาธารณะที่ทุกคนซึ่งเปิดลิงก์นี้จะเห็นรูปเดียวกัน</p>
+  </header>
+
+  <div class="lighttable" id="dropzone">
+    <span class="glyph">◎</span>
+    <div class="cta">ลากรูปมาวางที่นี่ หรือคลิกเพื่อเลือกไฟล์</div>
+    <div class="hint">รองรับ JPG · PNG · WEBP — ระบบจะย่อขนาดให้อัตโนมัติ</div>
+    <input type="file" id="fileInput" accept="image/*" multiple>
+  </div>
+  <div class="status" id="status"></div>
+
+  <div class="sheet-label">
+    <h2>คลังภาพ</h2>
+    <div class="frame-count" id="frameCount">0 เฟรม</div>
+  </div>
+
+  <div id="galleryArea">
+    <div class="empty" id="emptyMsg">
+      <span>ม้วนฟิล์มยังว่างอยู่</span>
+      ยังไม่มีรูปในคลัง — เริ่มอัปโหลดรูปแรกของคุณด้านบน
+    </div>
+    <div class="grid" id="grid" style="display:none;"></div>
+  </div>
+
+  <footer>แกลเลอรีสาธารณะ (shared storage) — ทุกคนที่เปิดลิงก์นี้เห็นรูปชุดเดียวกันและอัปโหลดเพิ่มได้ · ลบรูปยังต้องใส่รหัสยืนยัน</footer>
+</div>
+
+<div class="lightbox" id="lightbox">
+  <button class="nav prev" id="navPrev" title="รูปก่อนหน้า">‹</button>
+  <button class="nav next" id="navNext" title="รูปถัดไป">›</button>
+  <div class="stage">
+    <button class="close" id="lbClose" title="ปิด">✕</button>
+    <img id="lbImg" src="" alt="">
+    <div class="meta">
+      <span class="idx" id="lbIdx"></span>
+      <span id="lbName"></span>
+      <button id="lbDownload">⬇ ดาวน์โหลด</button>
+      <button class="del" id="lbDelete">✕ ลบ</button>
+    </div>
+  </div>
+</div>
+
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <p class="ct">ลบรูปนี้ใช่ไหม</p>
+    <p class="cd" id="confirmText">การลบไม่สามารถย้อนกลับได้</p>
+    <div class="cpass">
+      <label for="confirmPass">ใส่รหัสเพื่อยืนยันการลบ</label>
+      <input type="password" id="confirmPass" inputmode="numeric" autocomplete="off" placeholder="รหัสลับ">
+      <p class="cerr" id="confirmErr"></p>
+    </div>
+    <div class="cbtns">
+      <button id="confirmCancel">ยกเลิก</button>
+      <button class="confirm-danger" id="confirmOk">ยืนยันและลบ</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'lighttable-photos';
+const MAX_DIM = 1600;
+const JPEG_QUALITY = 0.82;
+const MAX_PHOTOS = 40;
+
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const statusEl = document.getElementById('status');
+const grid = document.getElementById('grid');
+const emptyMsg = document.getElementById('emptyMsg');
+const frameCount = document.getElementById('frameCount');
+
+let photos = [];
+let displayOrder = [];
+let currentIndex = 0;
+
+function setStatus(msg, isErr){
+  statusEl.textContent = msg || '';
+  statusEl.className = 'status' + (isErr ? ' err' : '');
+}
+
+async function loadPhotos(){
+  try{
+    const res = await window.storage.get(STORAGE_KEY, true);
+    photos = res && res.value ? JSON.parse(res.value) : [];
+  }catch(e){
+    photos = [];
+  }
+  render();
+}
+
+async function savePhotos(){
+  try{
+    const result = await window.storage.set(STORAGE_KEY, JSON.stringify(photos), true);
+    if(!result){
+      setStatus('บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง', true);
+    }
+  }catch(e){
+    setStatus('เกิดข้อผิดพลาดขณะบันทึก: อาจมีรูปเยอะเกินไป', true);
+  }
+}
+
+function render(){
+  frameCount.textContent = photos.length + ' เฟรม';
+  if(photos.length === 0){
+    emptyMsg.style.display = 'block';
+    grid.style.display = 'none';
+    grid.innerHTML = '';
+    return;
+  }
+  emptyMsg.style.display = 'none';
+  grid.style.display = 'grid';
+  grid.innerHTML = '';
+  displayOrder = photos.slice().reverse();
+  displayOrder.forEach((p, idx) => {
+    const frame = document.createElement('div');
+    frame.className = 'frame';
+    frame.innerHTML = `
+      <img src="${p.dataUrl}" alt="${escapeHtml(p.name)}">
+      <div class="overlay">
+        <span class="fname">${escapeHtml(p.name)}</span>
+        <span class="actions">
+          <button class="dl" title="ดาวน์โหลด">⬇</button>
+          <button class="del" title="ลบ">✕</button>
+        </span>
+      </div>
+    `;
+    frame.addEventListener('click', () => openLightbox(idx));
+    frame.querySelector('.dl').onclick = (e) => { e.stopPropagation(); downloadPhoto(p); };
+    frame.querySelector('.del').onclick = (e) => { e.stopPropagation(); requestDelete(p.id, p.name); };
+    grid.appendChild(frame);
+  });
+}
+
+function escapeHtml(s){
+  return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function downloadPhoto(p){
+  const a = document.createElement('a');
+  a.href = p.dataUrl;
+  a.download = p.name || 'photo.jpg';
+  a.click();
+}
+
+async function deletePhoto(id){
+  photos = photos.filter(p => p.id !== id);
+  render();
+  await savePhotos();
+  setStatus('ลบรูปแล้ว');
+  setTimeout(() => setStatus(''), 2000);
+}
+
+function resizeImage(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if(width > MAX_DIM || height > MAX_DIM){
+          const scale = MAX_DIM / Math.max(width, height);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', JPEG_QUALITY));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handleFiles(fileList){
+  const files = Array.from(fileList).filter(f => f.type.startsWith('image/'));
+  if(files.length === 0){
+    setStatus('กรุณาเลือกไฟล์รูปภาพเท่านั้น', true);
+    return;
+  }
+  if(photos.length + files.length > MAX_PHOTOS){
+    setStatus(`คลังภาพเก็บได้สูงสุด ${MAX_PHOTOS} รูป — ลบบางรูปก่อนอัปโหลดเพิ่ม`, true);
+    return;
+  }
+  setStatus(`กำลังอัปโหลด ${files.length} รูป...`);
+  for(const file of files){
+    try{
+      const dataUrl = await resizeImage(file);
+      photos.push({
+        id: Date.now() + '-' + Math.random().toString(36).slice(2,8),
+        name: file.name,
+        dataUrl,
+        ts: Date.now()
+      });
+      render();
+    }catch(e){
+      setStatus('อัปโหลดรูปบางไฟล์ไม่สำเร็จ', true);
+    }
+  }
+  await savePhotos();
+  setStatus(`อัปโหลดสำเร็จ ${files.length} รูป`);
+  setTimeout(() => setStatus(''), 2500);
+}
+
+const DELETE_CODE = '969116';
+const confirmOverlay = document.getElementById('confirmOverlay');
+const confirmText = document.getElementById('confirmText');
+const confirmCancel = document.getElementById('confirmCancel');
+const confirmOk = document.getElementById('confirmOk');
+const confirmPass = document.getElementById('confirmPass');
+const confirmErr = document.getElementById('confirmErr');
+let confirmResolver = null;
+
+function askConfirm(name){
+  confirmText.textContent = name ? `"${name}" จะถูกลบและไม่สามารถกู้คืนได้` : 'การลบไม่สามารถย้อนกลับได้';
+  confirmPass.value = '';
+  confirmErr.textContent = '';
+  confirmOverlay.classList.add('open');
+  setTimeout(() => confirmPass.focus(), 50);
+  return new Promise((resolve) => { confirmResolver = resolve; });
+}
+
+function settleConfirm(result){
+  confirmOverlay.classList.remove('open');
+  if(confirmResolver){ confirmResolver(result); confirmResolver = null; }
+}
+
+function attemptConfirm(){
+  if(confirmPass.value.trim() !== DELETE_CODE){
+    confirmErr.textContent = 'รหัสไม่ถูกต้อง ลองใหม่อีกครั้ง';
+    confirmPass.value = '';
+    confirmPass.focus();
+    return;
+  }
+  settleConfirm(true);
+}
+
+confirmCancel.addEventListener('click', () => settleConfirm(false));
+confirmOk.addEventListener('click', attemptConfirm);
+confirmPass.addEventListener('keydown', (e) => {
+  if(e.key === 'Enter') attemptConfirm();
+});
+confirmOverlay.addEventListener('click', (e) => {
+  if(e.target === confirmOverlay) settleConfirm(false);
+});
+document.addEventListener('keydown', (e) => {
+  if(!confirmOverlay.classList.contains('open')) return;
+  if(e.key === 'Escape') settleConfirm(false);
+});
+
+async function requestDelete(id, name){
+  const ok = await askConfirm(name);
+  if(ok) await deletePhoto(id);
+  return ok;
+}
+
+const lightbox = document.getElementById('lightbox');
+const lbImg = document.getElementById('lbImg');
+const lbIdx = document.getElementById('lbIdx');
+const lbName = document.getElementById('lbName');
+const lbDownload = document.getElementById('lbDownload');
+const lbDelete = document.getElementById('lbDelete');
+
+function openLightbox(idx){
+  currentIndex = idx;
+  showCurrent();
+  lightbox.classList.add('open');
+}
+
+function showCurrent(){
+  const p = displayOrder[currentIndex];
+  if(!p){ closeLightbox(); return; }
+  lbImg.src = p.dataUrl;
+  lbImg.alt = p.name;
+  lbName.textContent = p.name;
+  lbIdx.textContent = `${currentIndex + 1} / ${displayOrder.length}`;
+}
+
+function closeLightbox(){
+  lightbox.classList.remove('open');
+}
+
+function showPrev(){
+  if(displayOrder.length === 0) return;
+  currentIndex = (currentIndex - 1 + displayOrder.length) % displayOrder.length;
+  showCurrent();
+}
+
+function showNext(){
+  if(displayOrder.length === 0) return;
+  currentIndex = (currentIndex + 1) % displayOrder.length;
+  showCurrent();
+}
+
+document.getElementById('lbClose').addEventListener('click', closeLightbox);
+document.getElementById('navPrev').addEventListener('click', showPrev);
+document.getElementById('navNext').addEventListener('click', showNext);
+lbDownload.addEventListener('click', () => downloadPhoto(displayOrder[currentIndex]));
+lbDelete.addEventListener('click', async () => {
+  const p = displayOrder[currentIndex];
+  if(!p) return;
+  const ok = await askConfirm(p.name);
+  if(!ok) return;
+  await deletePhoto(p.id);
+  if(displayOrder.length === 0){ closeLightbox(); return; }
+  currentIndex = Math.min(currentIndex, displayOrder.length - 1);
+  showCurrent();
+});
+lightbox.addEventListener('click', (e) => {
+  if(e.target === lightbox) closeLightbox();
+});
+document.addEventListener('keydown', (e) => {
+  if(!lightbox.classList.contains('open')) return;
+  if(confirmOverlay.classList.contains('open')) return;
+  if(e.key === 'Escape') closeLightbox();
+  if(e.key === 'ArrowLeft') showPrev();
+  if(e.key === 'ArrowRight') showNext();
+});
+
+dropzone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+['dragenter','dragover'].forEach(evt => {
+  dropzone.addEventListener(evt, (e) => {
+    e.preventDefault(); e.stopPropagation();
+    dropzone.classList.add('drag');
+  });
+});
+['dragleave','drop'].forEach(evt => {
+  dropzone.addEventListener(evt, (e) => {
+    e.preventDefault(); e.stopPropagation();
+    dropzone.classList.remove('drag');
+  });
+});
+dropzone.addEventListener('drop', (e) => {
+  if(e.dataTransfer.files && e.dataTransfer.files.length){
+    handleFiles(e.dataTransfer.files);
+  }
+});
+
+loadPhotos();
+</script>
+</body>
+</html>
